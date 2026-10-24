@@ -816,7 +816,7 @@ function renderCart(){var sh=$("#cartSheet");if(!sh)return;var ids=cartIds(),h='
      +'<div class="cfoot"><button class="btn btn-ghost" type="button" data-cart-step="info">'+T("تعديل البيانات","Edit details")+'</button><button class="btn btn-primary" type="button" id="cartSend">'+(orderApi()?T("تأكيد وإرسال الطلب","Confirm & send order"):T("تأكيد وتجهيز ملف الطلب PDF","Confirm & create order PDF"))+"</button></div>";prepOrderPdf()}}
 /* ---------- ملف الطلب PDF (جدول: الرقم | اسم الصنف | العدد) ---------- */
 /* رابط وسيط الإرسال التلقائي إلى واتساب (Cloudflare Worker). اتركه فارغاً لاستخدام الإرسال اليدوي */
-var ORDER_API="";
+var ORDER_API="https://script.google.com/macros/s/AKfycbwadVM9tGuFm3YtEWr4jSAwUrtgNBwocW1hTeNeiT_RGV4JbhfwfWO-cMhxThbMYF9dtA/exec";
 function orderApi(){return ORDER_API||(cfg()&&cfg().orderApi)||""}
 var PDF_FONT='"IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif';
 function pdfWrap(ctx,text,maxW){var words=String(text||"").split(/\s+/),lines=[],cur="";words.forEach(function(w){var t=cur?cur+" "+w:w;if(cur&&ctx.measureText(t).width>maxW){lines.push(cur);cur=w}else cur=t});if(cur)lines.push(cur);return lines.length?lines:[""]}
@@ -889,8 +889,8 @@ async function sendOrder(btn){if(btn.disabled)return;var lbl=btn.innerHTML;btn.d
   var r=await(window.__pdfP||(prepOrderPdf(),window.__pdfP));
   if(!r){btn.disabled=false;btn.innerHTML=lbl;cToast(T("تعذّر إنشاء الملف، حاول مرة أخرى","Could not create the file, please try again"));return}
   var api=orderApi();window.__sentOk=false;
-  if(api){window.__orderPdf=r;try{var fd=new FormData();fd.append("pdf",r.blob,r.name);fd.append("filename",r.name);fd.append("name",CUST.name||"");fd.append("city",CUST.city||"");fd.append("phone",CUST.phone||"");fd.append("items",String(cartIds().length));fd.append("pieces",String(cartCount()));
-    var ctl=new AbortController(),tm=setTimeout(function(){ctl.abort()},30000),rs=await fetch(api,{method:"POST",body:fd,signal:ctl.signal});clearTimeout(tm);var jr=await rs.json().catch(function(){return{}});
+  if(api){window.__orderPdf=r;try{var body=JSON.stringify({pdf:await b64(r.blob),filename:r.name,name:CUST.name||"",city:CUST.city||"",phone:CUST.phone||"",addr:CUST.addr||"",note:CUST.note||"",items:String(cartIds().length),pieces:String(cartCount()),lines:cartIds().map(function(id){var p=byId[id];return[p.ar+(p.size?" — "+p.size:"")+(p.en?" ("+p.en+")":""),String(CART[id])]})});
+    var ctl=new AbortController(),tm=setTimeout(function(){ctl.abort()},45000),rs=await fetch(api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body,signal:ctl.signal});clearTimeout(tm);var jr=await rs.json().catch(function(){return{}});
     if(rs.ok&&jr.ok){Object.keys(CART).forEach(function(k){delete CART[k];syncQadd(k)});saveCart();updCartBadge();window.__sentOk=true;cStep="done";renderCart();return}}catch(er){}}
   window.__orderPdf=r;var file=null,shared=false;try{file=new File([r.blob],r.name,{type:"application/pdf"})}catch(er){}
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
